@@ -1,35 +1,35 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
-class LocationPickerScreen extends StatefulWidget {
+class OSMLocationPickerScreen extends StatefulWidget {
   final double? initialLatitude;
   final double? initialLongitude;
 
-  const LocationPickerScreen({
+  const OSMLocationPickerScreen({
     super.key,
     this.initialLatitude,
     this.initialLongitude,
   });
 
   @override
-  State<LocationPickerScreen> createState() =>
-      _LocationPickerScreenState();
+  State<OSMLocationPickerScreen> createState() =>
+      _OSMLocationPickerScreenState();
 }
 
-class _LocationPickerScreenState
-    extends State<LocationPickerScreen> {
+class _OSMLocationPickerScreenState extends State<OSMLocationPickerScreen> {
   late LatLng _selectedLocation;
   String _selectedLocationName = '';
   bool _isLoadingName = false;
   bool _isLoadingCurrentLocation = false;
-  GoogleMapController? _mapController;
-  bool _isMapReady = false;
+  MapController? _mapController;
 
   @override
   void initState() {
     super.initState();
+    _mapController = MapController();
     _selectedLocation = LatLng(
       widget.initialLatitude ?? 33.7294, // Islamabad default
       widget.initialLongitude ?? 73.0931,
@@ -97,15 +97,7 @@ class _LocationPickerScreenState
     }
   }
 
-  void _onMapCreated(GoogleMapController controller) {
-    if (!mounted) return;
-    _mapController = controller;
-    setState(() {
-      _isMapReady = true;
-    });
-  }
-
-  void _onMapTapped(LatLng location) {
+  void _onMapTapped(TapPosition tapPosition, LatLng location) {
     setState(() {
       _selectedLocation = location;
     });
@@ -190,15 +182,8 @@ class _LocationPickerScreenState
         _isLoadingCurrentLocation = false;
       });
 
-      if (_isMapReady && _mapController != null) {
-        _mapController!.animateCamera(
-          CameraUpdate.newCameraPosition(
-            CameraPosition(
-              target: currentLocation,
-              zoom: 15.0,
-            ),
-          ),
-        );
+      if (_mapController != null) {
+        _mapController!.move(currentLocation, 15.0);
       }
 
       await _getLocationName(currentLocation);
@@ -285,27 +270,28 @@ class _LocationPickerScreenState
     return Scaffold(
       body: Stack(
         children: [
-          // Google Map
-          GoogleMap(
-            onMapCreated: _onMapCreated,
-            initialCameraPosition: CameraPosition(
-              target: _selectedLocation,
-              zoom: 12.0,
+          // OpenStreetMap
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _selectedLocation,
+              initialZoom: 13.0,
+              minZoom: 5.0,
+              maxZoom: 18.0,
+              onTap: _onMapTapped,
             ),
-            onTap: _onMapTapped,
-            zoomControlsEnabled: false,
-            mapToolbarEnabled: false,
-            compassEnabled: true,
-            myLocationEnabled: false,
-            myLocationButtonEnabled: false,
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.sprintindex.app',
+              ),
+            ],
           ),
           // Center marker
-          Positioned(
-            top: MediaQuery.of(context).size.height / 2 - 20,
-            left: MediaQuery.of(context).size.width / 2 - 20,
+          Center(
             child: Icon(
               Icons.location_on,
-              size: 40,
+              size: 50,
               color: const Color(0xFFFF8C00),
               shadows: [
                 Shadow(
